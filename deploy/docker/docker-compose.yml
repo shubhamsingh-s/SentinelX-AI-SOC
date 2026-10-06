@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: sentinelx-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sentinelx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinelx_secure_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-sentinelx_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinelx} -d ${POSTGRES_DB:-sentinelx_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelx-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ../..
+      dockerfile: services/auth_service/Dockerfile
+    container_name: sentinelx-auth-service
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: development
+      DEBUG: "true"
+      SERVICE_NAME: auth-service
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-sentinelx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinelx_secure_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-sentinelx_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
