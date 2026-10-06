@@ -24,7 +24,7 @@ select = [
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
 ]
-ignore = ["B008", "ARG001", "ARG002"] # FastAPI Depends & unused pytest fixture params
+ignore = ["B008", "ARG001", "ARG002", "UP042"] # FastAPI Depends, unused pytest params, str Enum
 
 [tool.ruff.lint.isort]
 known-first-party = ["sentinel_common", "app"]

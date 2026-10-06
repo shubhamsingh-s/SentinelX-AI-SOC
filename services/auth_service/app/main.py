@@ -1,7 +1,7 @@
 """Main FastAPI application entrypoint for SentinelX Auth Service."""
 
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -14,6 +14,7 @@ from sentinel_common.middleware import RequestIDMiddleware
 from services.auth_service.app.api.v1.health import router as health_router
 from services.auth_service.app.api.v1.router import api_v1_router
 from services.auth_service.app.core.config import auth_settings
+from services.ingestion_service.app.api.v1.ingest import router as ingest_router
 
 # Prometheus Metrics
 REQUEST_COUNT = Counter(
@@ -65,7 +66,7 @@ def create_app() -> FastAPI:
 
     # Metrics Middleware
     @app.middleware("http")
-    async def metrics_middleware(request: Request, call_next: any) -> Response:
+    async def metrics_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         start_time = time.time()
         response: Response = await call_next(request)
         duration = time.time() - start_time
@@ -76,9 +77,10 @@ def create_app() -> FastAPI:
 
         return response
 
-    # Mount health probes at root level as well as under /api/v1
+    # Mount routers
     app.include_router(health_router)
     app.include_router(api_v1_router, prefix=auth_settings.API_V1_PREFIX)
+    app.include_router(ingest_router, prefix=auth_settings.API_V1_PREFIX)
 
     # Prometheus Metrics endpoint
     @app.get("/metrics", include_in_schema=False)
