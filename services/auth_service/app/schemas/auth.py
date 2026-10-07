@@ -1,4 +1,4 @@
-"""Auth and User Pydantic V2 schemas."""
+"""Auth, User, APIKey, and RBAC Pydantic V2 schemas."""
 
 import uuid
 from datetime import datetime
@@ -52,6 +52,12 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserProfileResponse(UserResponse):
+    """Extended user profile including permissions list."""
+
+    permissions: list[str] = Field(default_factory=list)
+
+
 class TenantResponse(BaseModel):
     """Tenant organization response object."""
 
@@ -75,3 +81,28 @@ class TOTPVerifyRequest(BaseModel):
     """TOTP MFA verification payload."""
 
     code: str = Field(..., min_length=6, max_length=6)
+    secret: str | None = Field(default=None, description="TOTP secret if enabling MFA")
+
+
+class APIKeyCreate(BaseModel):
+    """Schema for creating a new API Key."""
+
+    name: str = Field(..., min_length=1, max_length=100)
+    scopes: list[str] = Field(default_factory=list, description="Requested permission scopes e.g. ['alerts:read']")
+    expires_in_days: int | None = Field(default=None, ge=1, le=365)
+
+
+class APIKeyResponse(BaseModel):
+    """Schema for API Key response."""
+
+    id: uuid.UUID
+    name: str
+    prefix: str
+    raw_key: str | None = Field(default=None, description="Only populated on initial creation")
+    scopes: list[str]
+    expires_at: datetime | None
+    is_active: bool
+    last_used_at: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

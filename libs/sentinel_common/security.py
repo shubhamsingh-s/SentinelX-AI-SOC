@@ -1,8 +1,9 @@
-"""Security module handling Argon2 password hashing, RS256 JWT tokens, TOTP MFA, and RBAC."""
+"""Security module handling Argon2 password hashing, RS256 JWT tokens, TOTP MFA, API keys, and RBAC."""
 
 import hashlib
 import os
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -62,6 +63,23 @@ ROLE_HIERARCHY: dict[Role, int] = {
     Role.VIEWER: 10,
 }
 
+DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
+    Role.SUPER_ADMIN.value: ["*"],
+    Role.ORG_ADMIN.value: [
+        "users:read",
+        "users:write",
+        "alerts:read",
+        "alerts:write",
+        "logs:read",
+        "api_keys:manage",
+        "roles:manage",
+    ],
+    Role.RESPONDER.value: ["alerts:read", "alerts:write", "logs:read"],
+    Role.ANALYST.value: ["alerts:read", "logs:read"],
+    Role.HUNTER.value: ["alerts:read", "logs:read", "threats:hunt"],
+    Role.VIEWER.value: ["alerts:read"],
+}
+
 
 def hash_password(password: str) -> str:
     """Hash password using Argon2id."""
@@ -79,15 +97,26 @@ def verify_password(password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str, tenant_id: str, role: str, expires_delta: timedelta | None = None) -> str:
-    """Generate RS256 signed access token (15 min lifespan)."""
+def create_access_token(
+    user_id: str,
+    tenant_id: str,
+    role: str,
+    permissions: list[str] | None = None,
+    expires_delta: timedelta | None = None,
+    jti: str | None = None,
+) -> str:
+    """Generate RS256 signed access token with unique JTI and permissions list."""
     now = datetime.now(UTC)
     expire = now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    token_jti = jti or str(uuid.uuid4())
+    perms = permissions if permissions is not None else DEFAULT_ROLE_PERMISSIONS.get(role, [])
 
     payload: dict[str, Any] = {
         "sub": user_id,
         "tenant_id": tenant_id,
         "role": role,
+        "permissions": perms,
+        "jti": token_jti,
         "iat": now.timestamp(),
         "exp": expire.timestamp(),
         "type": "access",
@@ -122,6 +151,19 @@ def hash_refresh_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
+def generate_api_key(prefix: str = "sx_live_") -> tuple[str, str, str]:
+    """Generate raw API key string (e.g. sx_live_...), prefix, and SHA-256 key_hash."""
+    secret = secrets.token_hex(24)
+    raw_key = f"{prefix}{secret}"
+    key_hash = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+    return raw_key, prefix, key_hash
+
+
+def hash_api_key(raw_key: str) -> str:
+    """Hash raw API key string using SHA-256."""
+    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+
 def generate_totp_secret() -> str:
     """Generate secret for TOTP MFA."""
     return pyotp.random_base32()
@@ -142,3 +184,17 @@ def check_role_permission(user_role: str, allowed_roles: list[Role]) -> bool:
 
     allowed_values = [r.value for r in allowed_roles]
     return user_r.value in allowed_values or user_r == Role.SUPER_ADMIN
+
+
+def has_permission(user_permissions: list[str], required_perm: str) -> bool:
+    """Check if user permissions list contains or matches required_perm."""
+    if "*" in user_permissions:
+        return True
+    if required_perm in user_permissions:
+        return True
+    for perm in user_permissions:
+        if perm.endswith("*"):
+            prefix = perm[:-1]
+            if required_perm.startswith(prefix):
+                return True
+    return False

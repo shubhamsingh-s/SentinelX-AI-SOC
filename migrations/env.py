@@ -9,9 +9,15 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from sentinel_common.config import settings
 from sentinel_common.db import Base
-from services.auth_service.app.models.audit import AuditLog  # noqa: F401
-from services.auth_service.app.models.tenant import Tenant  # noqa: F401
-from services.auth_service.app.models.user import RefreshToken, User  # noqa: F401
+from services.auth_service.app.models import (  # noqa: F401
+    APIKey,
+    AuditLog,
+    Permission,
+    RefreshToken,
+    RoleModel,
+    Tenant,
+    User,
+)
 from services.ingestion_service.app.models.alert import Alert  # noqa: F401
 from services.ingestion_service.app.models.log_event import LogEvent  # noqa: F401
 

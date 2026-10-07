@@ -1,19 +1,17 @@
 """UserRepository providing async SQLAlchemy database queries."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.auth_service.app.models.audit import AuditLog
-from services.auth_service.app.models.tenant import Tenant
-from services.auth_service.app.models.user import RefreshToken, User
+from services.auth_service.app.models import APIKey, AuditLog, Permission, RefreshToken, RoleModel, Tenant, User
 
 
 class UserRepository:
-    """Repository managing User, Tenant, RefreshToken, and AuditLog persistence."""
+    """Repository managing User, Tenant, RefreshToken, APIKey, and AuditLog persistence."""
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -48,6 +46,15 @@ class UserRepository:
         )
         self.session.add(user)
         await self.session.flush()
+        return user
+
+    async def update_user_mfa(self, user_id: uuid.UUID, mfa_secret: str, mfa_enabled: bool = True) -> User | None:
+        """Update MFA secret and status for a user."""
+        user = await self.get_user_by_id(user_id)
+        if user:
+            user.mfa_secret = mfa_secret
+            user.mfa_enabled = mfa_enabled
+            await self.session.flush()
         return user
 
     async def get_tenant_by_id(self, tenant_id: uuid.UUID) -> Tenant | None:
@@ -92,7 +99,56 @@ class UserRepository:
             update(RefreshToken)
             .where(RefreshToken.user_id == user_id, RefreshToken.is_revoked == False)  # noqa: E712
             .values(is_revoked=True)
+            .execution_options(synchronize_session="fetch")
         )
+        await self.session.execute(stmt)
+        await self.session.flush()
+
+    async def create_api_key(
+        self,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        name: str,
+        prefix: str,
+        key_hash: str,
+        scopes: list[str],
+        expires_at: datetime | None = None,
+    ) -> APIKey:
+        """Create a new API Key record."""
+        api_key = APIKey(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            name=name,
+            prefix=prefix,
+            key_hash=key_hash,
+            scopes=scopes,
+            expires_at=expires_at,
+        )
+        self.session.add(api_key)
+        await self.session.flush()
+        return api_key
+
+    async def get_api_key_by_hash(self, key_hash: str) -> APIKey | None:
+        """Fetch APIKey record by its key_hash."""
+        stmt = select(APIKey).where(APIKey.key_hash == key_hash, APIKey.is_active == True)  # noqa: E712
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_user_api_keys(self, user_id: uuid.UUID) -> list[APIKey]:
+        """Fetch all API keys for a user."""
+        stmt = select(APIKey).where(APIKey.user_id == user_id).order_by(APIKey.created_at.desc())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def delete_api_key(self, api_key_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+        """Revoke/Delete an API key by ID."""
+        stmt = delete(APIKey).where(APIKey.id == api_key_id, APIKey.user_id == user_id)
+        result = await self.session.execute(stmt)
+        return result.rowcount > 0
+
+    async def touch_api_key_last_used(self, api_key_id: uuid.UUID) -> None:
+        """Update last_used_at timestamp on APIKey."""
+        stmt = update(APIKey).where(APIKey.id == api_key_id).values(last_used_at=datetime.now(UTC))
         await self.session.execute(stmt)
 
     async def create_audit_log(

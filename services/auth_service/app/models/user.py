@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sentinel_common.db import Base
 
 if TYPE_CHECKING:
+    from services.auth_service.app.models.api_key import APIKey
     from services.auth_service.app.models.tenant import Tenant
 
 
@@ -35,6 +36,9 @@ class User(Base):
     tenant: Mapped[Tenant] = relationship("Tenant", back_populates="users")
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
+    api_keys: Mapped[list[APIKey]] = relationship(
+        "APIKey", back_populates="user", cascade="all, delete-orphan"
     )
 
 
