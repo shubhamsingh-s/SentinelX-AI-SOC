@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKey, String, Table
@@ -12,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sentinel_common.db import Base
 
 if TYPE_CHECKING:
-    from services.auth_service.app.models.user import User
+    pass
 
 
 # Many-to-many join table for Role <-> Permission
@@ -37,9 +36,7 @@ class Permission(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    roles: Mapped[list[RoleModel]] = relationship(
-        "RoleModel", secondary=role_permissions, back_populates="permissions"
-    )
+    roles: Mapped[list[RoleModel]] = relationship("RoleModel", secondary=role_permissions, back_populates="permissions")
 
 
 class RoleModel(Base):

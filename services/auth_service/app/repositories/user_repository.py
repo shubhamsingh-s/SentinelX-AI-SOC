@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.auth_service.app.models import APIKey, AuditLog, Permission, RefreshToken, RoleModel, Tenant, User
+from services.auth_service.app.models import APIKey, AuditLog, RefreshToken, Tenant, User
 
 
 class UserRepository:

@@ -1,4 +1,6 @@
-"""Comprehensive tests for Authentication, Argon2, RS256 JWT, MFA, Refresh Token Rotation, JTI Blacklist, API Keys, and RBAC / require_perm."""
+"""Comprehensive tests for Authentication, Argon2, RS256 JWT, MFA,
+Refresh Token Rotation, JTI Blacklist, API Keys, and RBAC / require_perm.
+"""
 
 import uuid
 

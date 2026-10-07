@@ -45,7 +45,9 @@ async def ingest_events(
     x_tenant_id: uuid.UUID | None = Header(default=None),
     ingest_service: IngestionService = Depends(get_ingest_service),
 ) -> EventBatchIngestResponse:
-    """Ingest batches of up to 1,000 security events with API-Key auth, normalize to common schema, push to Redis Stream events:raw, and persist to events hypertable."""
+    """Ingest batches of up to 1,000 security events with API-Key auth,
+    normalize to common schema, push to Redis Stream events:raw, and persist to events hypertable.
+    """
     target_tenant = x_tenant_id or current_user.tenant_id
     resp = await ingest_service.ingest_event_batch(
         tenant_id=target_tenant,

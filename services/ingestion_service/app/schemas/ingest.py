@@ -10,8 +10,14 @@ from pydantic import BaseModel, Field
 class RawEventItem(BaseModel):
     """Individual raw or pre-parsed security event payload for ingestion."""
 
-    timestamp: datetime | None = Field(default=None, description="Event generation timestamp (defaults to ingestion time)")
-    source_type: str = Field(default="generic", max_length=50, description="Log source type (e.g. syslog, firewall, cloudtrail, edr)")
+    timestamp: datetime | None = Field(
+        default=None, description="Event generation timestamp (defaults to ingestion time)"
+    )
+    source_type: str = Field(
+        default="generic",
+        max_length=50,
+        description="Log source type (e.g. syslog, firewall, cloudtrail, edr)",
+    )
     event_name: str = Field(default="security_event", max_length=255, description="Event action or identifier")
     source_ip: str | None = Field(default=None, max_length=45)
     destination_ip: str | None = Field(default=None, max_length=45)

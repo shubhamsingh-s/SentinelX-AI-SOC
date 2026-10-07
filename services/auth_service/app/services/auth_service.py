@@ -8,7 +8,6 @@ import pyotp
 from sentinel_common.exceptions import (
     BadRequestException,
     ConflictException,
-    ForbiddenException,
     UnauthorizedException,
 )
 from sentinel_common.logger import logger
@@ -202,7 +201,11 @@ class AuthService:
             )
 
         now_dt = datetime.now(UTC)
-        token_expires = token_record.expires_at.replace(tzinfo=UTC) if token_record.expires_at.tzinfo is None else token_record.expires_at
+        token_expires = (
+            token_record.expires_at.replace(tzinfo=UTC)
+            if token_record.expires_at.tzinfo is None
+            else token_record.expires_at
+        )
         if token_expires < now_dt:
             raise UnauthorizedException("Refresh token has expired")
 
@@ -235,9 +238,7 @@ class AuthService:
         token_response = TokenResponse(access_token=access_token, expires_in=900)
         return token_response, raw_new_refresh
 
-    async def logout_user(
-        self, jti: str | None, raw_refresh_token: str | None, redis_client: Any = None
-    ) -> None:
+    async def logout_user(self, jti: str | None, raw_refresh_token: str | None, redis_client: Any = None) -> None:
         """Blacklist JTI in Redis and revoke refresh token in database on logout."""
         if jti and redis_client:
             await blacklist_jti(redis_client, jti, ttl_seconds=900)

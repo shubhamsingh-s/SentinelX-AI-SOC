@@ -49,7 +49,7 @@ async def get_current_user(
             raise UnauthorizedException("User account is inactive or no longer exists")
 
         perms = payload.get("permissions") or DEFAULT_ROLE_PERMISSIONS.get(user.role, [])
-        setattr(user, "permissions", perms)
+        user.permissions = perms
         return user
 
     # 2. API Key Authentication
@@ -67,7 +67,7 @@ async def get_current_user(
         if not user or not user.is_active:
             raise UnauthorizedException("User account associated with API key is inactive")
 
-        setattr(user, "permissions", api_key.scopes or DEFAULT_ROLE_PERMISSIONS.get(user.role, []))
+        user.permissions = api_key.scopes or DEFAULT_ROLE_PERMISSIONS.get(user.role, [])
         return user
 
     raise UnauthorizedException("Missing or invalid Authorization header or X-API-Key")

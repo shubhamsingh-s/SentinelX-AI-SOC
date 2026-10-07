@@ -1,10 +1,9 @@
 """Log Ingestion, Normalization, Event Stream, and Threat Detection Orchestrator."""
 
 import uuid
-from typing import Any
 
 from redis.asyncio import Redis
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_common.detection.ioc_engine import IOCEngine
@@ -64,9 +63,7 @@ tags:
         self.ioc_engine.load_ioc("ip", "192.168.1.100", "Malicious Botnet C2", confidence=95)
         self.ioc_engine.load_ioc("ip", "10.0.0.99", "APT29 Known Exploit Host", confidence=90)
 
-    async def ingest_event_batch(
-        self, tenant_id: uuid.UUID, events: list[RawEventItem]
-    ) -> EventBatchIngestResponse:
+    async def ingest_event_batch(self, tenant_id: uuid.UUID, events: list[RawEventItem]) -> EventBatchIngestResponse:
         """Normalize event batch, push to Redis Stream events:raw, and write to events hypertable."""
         if not events:
             raise BadRequestException("Event batch cannot be empty")
