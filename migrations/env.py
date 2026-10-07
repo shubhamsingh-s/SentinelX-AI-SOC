@@ -18,8 +18,12 @@ from services.auth_service.app.models import (  # noqa: F401
     Tenant,
     User,
 )
-from services.ingestion_service.app.models.alert import Alert  # noqa: F401
-from services.ingestion_service.app.models.log_event import LogEvent  # noqa: F401
+from services.ingestion_service.app.models import (  # noqa: F401
+    Alert,
+    Event,
+    LogEvent,
+    LogSource,
+)
 
 config = context.config
 if config.config_file_name:

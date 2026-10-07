@@ -11,7 +11,11 @@ from sentinel_common.db import get_db_session
 from sentinel_common.detection.parsers import LogParser
 from sentinel_common.logger import request_id_ctx
 from sentinel_common.redis import get_redis_client
+from services.auth_service.app.deps import get_current_user
+from services.auth_service.app.models.user import User
 from services.ingestion_service.app.schemas.ingest import (
+    EventBatchIngestRequest,
+    EventBatchIngestResponse,
     IngestionResponse,
     SyslogIngestRequest,
     WebhookIngestRequest,
@@ -27,6 +31,28 @@ def get_ingest_service(
 ) -> IngestionService:
     """Dependency injection provider for IngestionService."""
     return IngestionService(session, redis_client)
+
+
+@router.post(
+    "/events",
+    response_model=EventBatchIngestResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Batch Ingest Security Events",
+)
+async def ingest_events(
+    payload: EventBatchIngestRequest,
+    current_user: User = Depends(get_current_user),
+    x_tenant_id: uuid.UUID | None = Header(default=None),
+    ingest_service: IngestionService = Depends(get_ingest_service),
+) -> EventBatchIngestResponse:
+    """Ingest batches of up to 1,000 security events with API-Key auth, normalize to common schema, push to Redis Stream events:raw, and persist to events hypertable."""
+    target_tenant = x_tenant_id or current_user.tenant_id
+    resp = await ingest_service.ingest_event_batch(
+        tenant_id=target_tenant,
+        events=payload.events,
+    )
+    resp.request_id = request_id_ctx.get()
+    return resp
 
 
 @router.post(

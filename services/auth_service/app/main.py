@@ -15,6 +15,7 @@ from services.auth_service.app.api.v1.health import router as health_router
 from services.auth_service.app.api.v1.router import api_v1_router
 from services.auth_service.app.core.config import auth_settings
 from services.ingestion_service.app.api.v1.ingest import router as ingest_router
+from services.ingestion_service.app.api.v1.log_sources import router as log_sources_router
 
 # Prometheus Metrics
 REQUEST_COUNT = Counter(
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(api_v1_router, prefix=auth_settings.API_V1_PREFIX)
     app.include_router(ingest_router, prefix=auth_settings.API_V1_PREFIX)
+    app.include_router(log_sources_router, prefix=auth_settings.API_V1_PREFIX)
 
     # Prometheus Metrics endpoint
     @app.get("/metrics", include_in_schema=False)
